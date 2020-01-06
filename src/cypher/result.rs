@@ -1,8 +1,10 @@
-use serde::de::DeserializeOwned;
-use serde_json;
-use serde_json::value::Value;
+use serde::{
+    de::DeserializeOwned,
+    ser::{Serialize, SerializeSeq, Serializer},
+};
+use serde_json::{self, value::Value};
 
-use ::error::{GraphError, Neo4jError};
+use error::{GraphError, Neo4jError};
 
 pub trait ResultTrait {
     fn results(&self) -> &Vec<CypherResult>;
@@ -31,8 +33,21 @@ pub struct RowResult {
     row: Vec<Value>,
 }
 
+impl Serialize for RowResult {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.row.len()))?;
+        for e in &self.row {
+            seq.serialize_element(e)?;
+        }
+        seq.end()
+    }
+}
+
 /// Holds the result of a cypher query
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct CypherResult {
     pub columns: Vec<String>,
     pub data: Vec<RowResult>,
@@ -98,7 +113,12 @@ impl<'a> Row<'a> {
     pub fn get_n<T: DeserializeOwned>(&self, column: usize) -> Result<T, GraphError> {
         let column_data = match self.data.get(column) {
             Some(c) => c.clone(),
-            None => return Err(GraphError::Statement(format!("No column at index {}", column))),
+            None => {
+                return Err(GraphError::Statement(format!(
+                    "No column at index {}",
+                    column
+                )))
+            }
         };
 
         serde_json::from_value::<T>(column_data).map_err(From::from)
@@ -117,9 +137,10 @@ impl<'a> Iterator for Rows<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use serde_json::value as json_value;
     use super::*;
+    use serde_json::json;
+    use serde_json::value as json_value;
+    use std::collections::BTreeMap;
 
     #[derive(Clone, Serialize)]
     struct Person {
@@ -136,8 +157,12 @@ mod tests {
         let node = json_value::to_value(&node).unwrap();
         let row_data = vec![node];
 
-        let row1 = RowResult { row: row_data.clone() };
-        let row2 = RowResult { row: row_data.clone() };
+        let row1 = RowResult {
+            row: row_data.clone(),
+        };
+        let row2 = RowResult {
+            row: row_data.clone(),
+        };
 
         let data = vec![row1, row2];
         let columns = vec!["node".to_owned()];
@@ -177,5 +202,28 @@ mod tests {
         let rows: Vec<Row> = result.rows().collect();
         let ref row = rows[0];
         row.get_n::<String>(99).unwrap();
+    }
+
+    #[test]
+    fn rowresult_serialize() {
+        let r = RowResult {
+            row: vec![json!("a string"), json!(1), json!(true)],
+        };
+        let s = serde_json::to_string(&r).unwrap();
+        let actl = r#"["a string",1,true]"#;
+        assert_eq!(s, actl);
+    }
+
+    #[test]
+    fn cypherresult_serialize() {
+        let r = CypherResult {
+            columns: vec!["node".to_string(), "relation".to_string()],
+            data: vec![RowResult {
+                row: vec![json!("a string"), json!(1), json!(true)],
+            }],
+        };
+        let s = serde_json::to_string(&r).unwrap();
+        let actl = r#"{"columns":["node","relation"],"data":[["a string",1,true]]}"#;
+        assert_eq!(s, actl);
     }
 }
