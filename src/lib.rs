@@ -93,7 +93,8 @@
 //! There is a macro to help building statements
 //!
 //! ```
-//! # #[macro_use] extern crate rusted_cypher;
+//! # use rusted_cypher::cypher_stmt;
+//! # use serde_json::error::Error as JsonError;
 //! # use rusted_cypher::{GraphClient, Statement, GraphError};
 //! # fn main() { doctest().unwrap(); }
 //! # fn doctest() -> Result<(), GraphError> {
@@ -122,26 +123,26 @@
 //! # }
 //! ```
 
-extern crate hyper;
-pub extern crate serde;
-pub extern crate serde_json;
+// extern crate hyper;
+// pub extern crate serde;
+// pub extern crate serde_json;
 
-#[macro_use]
-extern crate serde_derive;
+// #[macro_use]
+// extern crate serde_derive;
 
-extern crate semver;
-extern crate time;
+// extern crate semver;
+// extern crate time;
 
-#[macro_use]
-extern crate quick_error;
+// #[macro_use]
+// extern crate quick_error;
 
-#[macro_use]
-extern crate log;
+// #[macro_use]
+// extern crate log;
 
 pub mod cypher;
-pub mod graph;
 pub mod error;
+pub mod graph;
 
-pub use graph::GraphClient;
 pub use cypher::Statement;
 pub use error::GraphError;
+pub use graph::GraphClient;

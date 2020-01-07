@@ -1,15 +1,17 @@
 //! Error types returned by the `GraphClient`
 
+use hyper;
+use quick_error::quick_error;
+use semver::SemVerError;
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::error::Error;
 use std::fmt;
-use std::string::FromUtf8Error;
 use std::io;
-use hyper;
-use serde_json;
+use std::string::FromUtf8Error;
 use time;
-use semver::SemVerError;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Neo4jError {
     pub message: String,
     pub code: String,

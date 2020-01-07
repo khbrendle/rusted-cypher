@@ -4,6 +4,8 @@
 //!
 //! ## Execute a single query
 //! ```
+//! # use rusted_cypher::cypher_stmt;
+//! # use serde_json::error::Error as JsonError;
 //! # use rusted_cypher::{GraphClient, GraphError};
 //! # fn main() { doctest().unwrap(); }
 //! # fn doctest() -> Result<(), GraphError> {
@@ -57,20 +59,21 @@
 //! }
 //! ```
 
+use crate::cypher::statement::Statement;
+use crate::cypher::transaction::{Created as TransactionCreated, Transaction};
+use crate::cypher::{Cypher, CypherQuery, CypherResult};
+use crate::error::GraphError;
+use hyper::header::{Authorization, Basic, ContentType, Headers};
+use hyper::{Client, Url};
+use log::error;
+use semver::Version;
+use serde::{Deserialize, Serialize};
+use serde_json::value as json_value;
+use serde_json::{self, Value};
 use std::collections::BTreeMap;
 use std::io::Read;
-use hyper::{Client, Url};
-use hyper::header::{Authorization, Basic, ContentType, Headers};
-use serde_json::{self, Value};
-use serde_json::value as json_value;
-use semver::Version;
 
-use cypher::{Cypher, CypherQuery, CypherResult};
-use cypher::transaction::{Transaction, Created as TransactionCreated};
-use cypher::statement::Statement;
-use error::GraphError;
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct ServiceRoot {
     pub extensions: BTreeMap<String, Value>,
     pub node: String,
@@ -92,12 +95,11 @@ fn decode_service_root<R: Read>(reader: &mut R) -> Result<ServiceRoot, GraphErro
 
     if let Some(errors) = result.get("errors") {
         if errors.as_array().map(|a| a.len()).unwrap_or(0) > 0 {
-            return Err(GraphError::Neo4j(json_value::from_value(errors.clone())?))
+            return Err(GraphError::Neo4j(json_value::from_value(errors.clone())?));
         }
     }
 
-    json_value::from_value(result)
-        .map_err(From::from)
+    json_value::from_value(result).map_err(From::from)
 }
 
 #[allow(dead_code)]
@@ -111,27 +113,25 @@ pub struct GraphClient {
 impl GraphClient {
     pub fn connect<T: AsRef<str>>(endpoint: T) -> Result<Self, GraphError> {
         let endpoint = endpoint.as_ref();
-        let url = Url::parse(endpoint)
-            .map_err(|e| {
-                error!("Unable to parse URL");
-                e
-            })?;
+        let url = Url::parse(endpoint).map_err(|e| {
+            error!("Unable to parse URL");
+            e
+        })?;
 
         let mut headers = Headers::new();
 
         url.password().map(|password| {
-            headers.set(Authorization(
-                Basic {
-                    username: url.username().to_owned(),
-                    password: Some(password.to_owned()),
-                }
-            ));
+            headers.set(Authorization(Basic {
+                username: url.username().to_owned(),
+                password: Some(password.to_owned()),
+            }));
         });
 
         headers.set(ContentType::json());
 
         let client = Client::new();
-        let mut res = client.get(endpoint)
+        let mut res = client
+            .get(endpoint)
             .headers(headers.clone())
             .send()
             .map_err(|e| {
@@ -205,7 +205,6 @@ mod tests {
         query.add_statement("MATCH (n) RETURN n");
 
         let result = query.send().unwrap();
-
         assert_eq!(result[0].columns.len(), 1);
         assert_eq!(result[0].columns[0], "n");
     }
@@ -214,7 +213,8 @@ mod tests {
     fn transaction() {
         let graph = GraphClient::connect(URL).unwrap();
 
-        let (transaction, result) = graph.transaction()
+        let (transaction, result) = graph
+            .transaction()
             .with_statement("MATCH (n) RETURN n")
             .begin()
             .unwrap();

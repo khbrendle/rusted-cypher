@@ -1,13 +1,17 @@
-extern crate serde;
+// extern crate serde;
 
-#[macro_use]
-extern crate serde_derive;
+// #[macro_use]
+// extern crate serde_derive;
+use serde::{self, Deserialize, Serialize};
+use serde_json::error::Error as JsonError;
 
-#[macro_use]
-extern crate rusted_cypher;
+// #[macro_use]
+// extern crate rusted_cypher;
 
-use rusted_cypher::GraphClient;
+use rusted_cypher::cypher_stmt;
+
 use rusted_cypher::cypher::result::Row;
+use rusted_cypher::GraphClient;
 
 const URI: &'static str = "http://neo4j:neo4j@127.0.0.1:7474/db/data";
 
@@ -40,7 +44,8 @@ fn save_retrive_struct() {
 
     let stmt = cypher_stmt!("CREATE (n:NTLY_INTG_TEST_MACROS_2 {lang}) RETURN n", {
         "lang" => &rust
-    }).unwrap();
+    })
+    .unwrap();
 
     let results = graph.exec(stmt).unwrap();
     let rows: Vec<Row> = results.rows().take(1).collect();
@@ -50,5 +55,7 @@ fn save_retrive_struct() {
 
     assert_eq!(rust, lang);
 
-    graph.exec("MATCH (n:NTLY_INTG_TEST_MACROS_2) DELETE n").unwrap();
+    graph
+        .exec("MATCH (n:NTLY_INTG_TEST_MACROS_2) DELETE n")
+        .unwrap();
 }

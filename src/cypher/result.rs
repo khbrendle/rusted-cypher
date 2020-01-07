@@ -1,10 +1,7 @@
-use serde::{
-    de::DeserializeOwned,
-    ser::{Serialize, SerializeSeq, Serializer},
-};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{self, value::Value};
 
-use error::{GraphError, Neo4jError};
+use crate::error::{GraphError, Neo4jError};
 
 pub trait ResultTrait {
     fn results(&self) -> &Vec<CypherResult>;
@@ -28,22 +25,9 @@ impl ResultTrait for QueryResult {
 }
 
 /// Holds a single row of the result of a cypher query
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RowResult {
-    row: Vec<Value>,
-}
-
-impl Serialize for RowResult {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut seq = serializer.serialize_seq(Some(self.row.len()))?;
-        for e in &self.row {
-            seq.serialize_element(e)?;
-        }
-        seq.end()
-    }
+    pub row: Vec<Value>,
 }
 
 /// Holds the result of a cypher query
@@ -61,9 +45,9 @@ impl CypherResult {
 }
 
 pub struct Rows<'a> {
-    current_index: usize,
-    columns: &'a Vec<String>,
-    data: &'a Vec<RowResult>,
+    pub current_index: usize,
+    pub columns: &'a Vec<String>,
+    pub data: &'a Vec<RowResult>,
 }
 
 impl<'a> Rows<'a> {
@@ -77,8 +61,8 @@ impl<'a> Rows<'a> {
 }
 
 pub struct Row<'a> {
-    columns: &'a Vec<String>,
-    data: &'a Vec<Value>,
+    pub columns: &'a Vec<String>,
+    pub data: &'a Vec<Value>,
 }
 
 impl<'a> Row<'a> {
@@ -210,7 +194,7 @@ mod tests {
             row: vec![json!("a string"), json!(1), json!(true)],
         };
         let s = serde_json::to_string(&r).unwrap();
-        let actl = r#"["a string",1,true]"#;
+        let actl = r#"{"row":["a string",1,true]}"#;
         assert_eq!(s, actl);
     }
 
@@ -223,7 +207,7 @@ mod tests {
             }],
         };
         let s = serde_json::to_string(&r).unwrap();
-        let actl = r#"{"columns":["node","relation"],"data":[["a string",1,true]]}"#;
+        let actl = r#"{"columns":["node","relation"],"data":[{"row":["a string",1,true]}]}"#;
         assert_eq!(s, actl);
     }
 }

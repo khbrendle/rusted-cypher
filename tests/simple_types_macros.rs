@@ -1,8 +1,11 @@
-#[macro_use]
-extern crate rusted_cypher;
+// #[macro_use]
+// extern crate rusted_cypher;
 
-use rusted_cypher::GraphClient;
+use rusted_cypher::cypher_stmt;
+use serde_json::error::Error as JsonError;
+
 use rusted_cypher::cypher::result::Row;
+use rusted_cypher::GraphClient;
 
 const URI: &'static str = "http://neo4j:neo4j@127.0.0.1:7474/db/data";
 
